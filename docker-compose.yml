@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bruno_pizza_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bruno
+      POSTGRES_PASSWORD: bruno_dev_password
+      POSTGRES_DB: bruno_pizza
+    ports:
+      - "5432:5432"
+    volumes:
+      - bruno_pizza_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bruno -d bruno_pizza"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  adminer:
+    image: adminer:latest
+    container_name: bruno_pizza_adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    depends_on:
+      - postgres
+
+volumes:
+  bruno_pizza_data:
