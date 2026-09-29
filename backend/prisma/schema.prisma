@@ -1,7 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
+// Still plain SQLite - Turso speaks the libSQL wire protocol, which is
+// SQLite-compatible, so the schema/provider don't change at all. Only the
+// runtime connection (see src/db/prisma.ts) differs: a driver adapter talks
+// to Turso in production, while local dev keeps using this file directly.
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")

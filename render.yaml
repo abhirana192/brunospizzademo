@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: bruno-pizza
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    # Applies the current Prisma migrations, then starts the server. Only
+    # matters if you skip the Turso setup and stay on plain SQLite - with
+    # Turso, migrations are applied once via `turso db shell` instead (see
+    # DEPLOYMENT.md), and this db:deploy step becomes a fast no-op.
+    startCommand: npm run db:deploy -w backend && npm start -w backend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        sync: false # set to your actual https://<service-name>.onrender.com URL after first deploy
+      - key: DATABASE_URL
+        value: "file:./unused.db" # ignored at runtime once TURSO_* below are set - Prisma still wants a URL-shaped value here
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_NAME
+        value: "Bruno Pizza Admin"
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_SECURE
+        value: "false"
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASSWORD
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: RESTAURANT_EMAIL
+        sync: false

@@ -17,6 +17,11 @@ export const env = {
   frontendUrl: process.env.FRONTEND_URL ?? "http://localhost:5173",
 
   databaseUrl: required("DATABASE_URL"),
+  // Optional: when both are set, prisma.ts connects to a hosted Turso
+  // (libSQL) database instead of the local SQLite file - used in production
+  // so data survives redeploys/restarts on hosts without a persistent disk.
+  tursoDatabaseUrl: process.env.TURSO_DATABASE_URL,
+  tursoAuthToken: process.env.TURSO_AUTH_TOKEN,
 
   jwtSecret: required("JWT_SECRET", "dev_insecure_secret_change_me"),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "8h",
