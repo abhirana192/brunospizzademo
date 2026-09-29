@@ -38,3 +38,22 @@ export const api = {
   patch: <T>(path: string, body?: unknown) => request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };
+
+// A real HTTP error response (validation failure, not-found, unauthorized...)
+// won't fix itself on retry - only a dropped/timed-out connection (which
+// never reached the server at all, so isn't an ApiClientError) or a 5xx is
+// worth retrying. Used for read-on-mount calls where silently showing
+// "empty" after one flaky request is worse than a short, invisible retry.
+export async function withRetry<T>(fn: () => Promise<T>, attempts = 3, delayMs = 400): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (err instanceof ApiClientError && err.status < 500) throw err;
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  throw lastErr;
+}

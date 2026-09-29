@@ -3,10 +3,27 @@ import { prisma } from "../../db/prisma";
 import { env } from "../../config/env";
 import { ApiError } from "../../utils/ApiError";
 import { CreateOrderInput } from "./orders.schema";
-import { OrderItemCustomization } from "./orders.types";
+import { OrderItemCustomization, OrderItemWithCustomization } from "./orders.types";
 import { sendCustomerConfirmationEmail, sendRestaurantNewOrderEmail } from "../email/emailService";
 
 const CRUST_OPTIONS = ["Regular", "Thin Crust", "Thick Crust", "Stuffed Crust"];
+
+// customization is stored as a JSON string (SQLite has no native Json type) -
+// every read path parses it back into an object before the order is used or
+// returned, so callers (email templates, API responses) never see the raw
+// string. The explicit return type forces TS to fully override `items`
+// rather than intersecting it with the generic input type.
+function withParsedItems<T extends { items: { customization: string | null }[] }>(
+  order: T
+): Omit<T, "items"> & { items: OrderItemWithCustomization[] } {
+  return {
+    ...order,
+    items: order.items.map((item) => ({
+      ...item,
+      customization: item.customization ? (JSON.parse(item.customization) as OrderItemCustomization) : null,
+    })),
+  } as unknown as Omit<T, "items"> & { items: OrderItemWithCustomization[] };
+}
 
 function validateRequestedTime(isAsap: boolean, requestedTime?: string) {
   if (isAsap) return new Date();
@@ -47,7 +64,7 @@ function toppingFeeForSize(sizeName: string): number {
   return env.business.pizzaToppingFeeSmall;
 }
 
-export async function createOrder(input: CreateOrderInput) {
+export async function createOrder(input: CreateOrderInput, customerId: string) {
   const requestedTime = validateRequestedTime(input.isAsap, input.requestedTime);
 
   // Re-fetch everything needed to price the order server-side. Never trust
@@ -138,8 +155,42 @@ export async function createOrder(input: CreateOrderInput) {
   const total = subtotal.plus(deliveryFee);
 
   const order = await prisma.$transaction(async (tx) => {
-    const seq = await tx.$queryRawUnsafe<{ nextval: bigint }[]>(`SELECT nextval('ticket_number_seq')`);
-    const ticketNumber = `BP-${seq[0].nextval.toString()}`;
+    // Resolve the delivery address before creating the order: either use an
+    // already-saved address (ownership-checked) or persist a brand-new one
+    // in the same transaction, so "add a new address at checkout" both
+    // saves it to the account and uses it for this order atomically.
+    let addressId: string | null = null;
+    let addressSnapshot: { address: string | null; apartment: string | null; city: string | null; postalCode: string | null } = {
+      address: null,
+      apartment: null,
+      city: null,
+      postalCode: null,
+    };
+
+    if (input.orderType === "DELIVERY") {
+      if (input.newAddress) {
+        const addr = await tx.address.create({
+          data: {
+            customerId,
+            label: input.newAddress.label,
+            address: input.newAddress.address,
+            apartment: input.newAddress.apartment || null,
+            city: input.newAddress.city,
+            postalCode: input.newAddress.postalCode,
+          },
+        });
+        addressId = addr.id;
+        addressSnapshot = { address: addr.address, apartment: addr.apartment, city: addr.city, postalCode: addr.postalCode };
+      } else if (input.addressId) {
+        const addr = await tx.address.findFirst({ where: { id: input.addressId, customerId } });
+        if (!addr) throw new ApiError(404, "Selected address not found.");
+        addressId = addr.id;
+        addressSnapshot = { address: addr.address, apartment: addr.apartment, city: addr.city, postalCode: addr.postalCode };
+      }
+    }
+
+    const counter = await tx.ticketCounter.update({ where: { id: 1 }, data: { value: { increment: 1 } } });
+    const ticketNumber = `BP-${counter.value}`;
 
     return tx.order.create({
       data: {
@@ -148,10 +199,9 @@ export async function createOrder(input: CreateOrderInput) {
         phone: input.phone,
         email: input.email || null,
         orderType: input.orderType,
-        address: input.address || null,
-        apartment: input.apartment || null,
-        city: input.city || null,
-        postalCode: input.postalCode || null,
+        customerId,
+        addressId,
+        ...addressSnapshot,
         deliveryNotes: input.deliveryNotes || null,
         isAsap: input.isAsap,
         requestedTime,
@@ -167,7 +217,7 @@ export async function createOrder(input: CreateOrderInput) {
             quantity: i.quantity,
             size: i.size,
             basePrice: i.basePrice,
-            customization: i.customization as Prisma.InputJsonValue,
+            customization: JSON.stringify(i.customization),
             price: i.price,
           })),
         },
@@ -176,10 +226,12 @@ export async function createOrder(input: CreateOrderInput) {
     });
   });
 
+  const parsedOrder = withParsedItems(order);
+
   // Best-effort notifications: never roll back the order if email fails.
   const [customerSent, restaurantSent] = await Promise.all([
-    sendCustomerConfirmationEmail(order),
-    sendRestaurantNewOrderEmail(order),
+    sendCustomerConfirmationEmail(parsedOrder),
+    sendRestaurantNewOrderEmail(parsedOrder),
   ]);
   await prisma.order.update({
     where: { id: order.id },
@@ -189,7 +241,7 @@ export async function createOrder(input: CreateOrderInput) {
     },
   });
 
-  return order;
+  return parsedOrder;
 }
 
 export async function getOrderByTicket(ticketNumber: string) {
@@ -198,7 +250,16 @@ export async function getOrderByTicket(ticketNumber: string) {
     include: { items: true },
   });
   if (!order) throw new ApiError(404, "We couldn't find an order with that ticket number.");
-  return order;
+  return withParsedItems(order);
+}
+
+export async function listOrdersForCustomer(customerId: string) {
+  const orders = await prisma.order.findMany({
+    where: { customerId },
+    include: { items: true },
+    orderBy: { createdAt: "desc" },
+  });
+  return orders.map(withParsedItems);
 }
 
 export interface AdminOrderSearch {
@@ -214,16 +275,16 @@ export async function searchOrders(params: AdminOrderSearch) {
   const where: Prisma.OrderWhereInput = {};
 
   if (params.ticketNumber) {
-    where.ticketNumber = { contains: params.ticketNumber, mode: "insensitive" };
+    // SQLite's LIKE (which `contains` compiles to) is already
+    // case-insensitive for ASCII by default - no `mode` option needed
+    // (and unlike Postgres, SQLite's Prisma connector doesn't support one).
+    where.ticketNumber = { contains: params.ticketNumber };
   }
   if (params.q) {
-    where.OR = [
-      { customerName: { contains: params.q, mode: "insensitive" } },
-      { phone: { contains: params.q, mode: "insensitive" } },
-    ];
+    where.OR = [{ customerName: { contains: params.q } }, { phone: { contains: params.q } }];
   }
   if (params.status && VALID_STATUSES.includes(params.status)) {
-    where.status = params.status as Prisma.EnumOrderStatusFilter["equals"];
+    where.status = params.status;
   }
   if (params.date) {
     const start = new Date(params.date);
@@ -234,21 +295,23 @@ export async function searchOrders(params: AdminOrderSearch) {
     }
   }
 
-  return prisma.order.findMany({
+  const orders = await prisma.order.findMany({
     where,
     include: { items: true },
     orderBy: { createdAt: "desc" },
     take: 200,
   });
+  return orders.map(withParsedItems);
 }
 
 export async function updateOrderStatus(orderId: string, status: string) {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) throw new ApiError(404, "Order not found.");
 
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: orderId },
-    data: { status: status as Prisma.OrderUpdateInput["status"] },
+    data: { status },
     include: { items: true },
   });
+  return withParsedItems(updated);
 }

@@ -16,17 +16,17 @@ function Stars({ rating }: { rating: number }) {
 
 export function Reviews() {
   return (
-    <section className="section py-16 sm:py-20">
+    <section className="bg-charcoal-950 section py-16 sm:py-20">
       <div className="text-center max-w-xl mx-auto mb-12">
-        <span className="text-amber-600 font-semibold tracking-widest text-xs uppercase">Customer Love</span>
-        <h2 className="font-display text-3xl sm:text-4xl font-bold text-charcoal-900 mt-1">What People Are Saying</h2>
+        <span className="text-amber-400 font-semibold tracking-widest text-xs uppercase">Customer Love</span>
+        <h2 className="font-display text-3xl sm:text-4xl font-bold text-cream-50 mt-1">What People Are Saying</h2>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {REVIEWS.map((r) => (
-          <div key={r.name} className="card p-6">
+          <div key={r.name} className="rounded-xl2 bg-white/10 backdrop-blur-xl border border-white/15 shadow-premium p-6">
             <Stars rating={r.rating} />
-            <p className="text-charcoal-600 mt-3 leading-relaxed">"{r.text}"</p>
-            <p className="font-semibold text-charcoal-900 mt-4 text-sm">{r.name}</p>
+            <p className="text-white/70 mt-3 leading-relaxed">"{r.text}"</p>
+            <p className="font-semibold text-cream-50 mt-4 text-sm">{r.name}</p>
           </div>
         ))}
       </div>

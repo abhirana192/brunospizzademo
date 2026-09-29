@@ -2,12 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-html {
-  scroll-behavior: smooth;
-}
-
 body {
   font-family: "Inter", system-ui, sans-serif;
+  background-color: #fdf3e7;
+}
+
+/* Lenis smooth-scroll: recommended base styles */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
 }
 
 h1, h2, h3, h4, .font-display {
@@ -16,22 +28,22 @@ h1, h2, h3, h4, .font-display {
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold tracking-wide transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-semibold tracking-wide transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500 disabled:opacity-50 disabled:pointer-events-none;
   }
   .btn-primary {
-    @apply btn bg-burgundy-600 text-cream-50 hover:bg-burgundy-700 active:scale-[0.98] shadow-card;
+    @apply btn bg-flame text-white shadow-glow hover:shadow-pop hover:brightness-[1.07] active:scale-[0.97] active:brightness-100;
   }
   .btn-secondary {
-    @apply btn bg-cream-50 text-burgundy-600 border-2 border-burgundy-600 hover:bg-burgundy-50 active:scale-[0.98];
+    @apply btn bg-white text-burgundy-600 border-2 border-burgundy-600 hover:bg-burgundy-50 hover:shadow-card active:scale-[0.97];
   }
   .btn-dark {
-    @apply btn bg-charcoal-800 text-cream-50 hover:bg-charcoal-900 active:scale-[0.98];
+    @apply btn bg-charcoal-900 text-cream-50 hover:bg-charcoal-800 hover:shadow-premium active:scale-[0.97];
   }
   .btn-ghost {
     @apply btn bg-transparent text-charcoal-800 hover:bg-charcoal-50;
   }
   .card {
-    @apply bg-white rounded-xl2 shadow-card;
+    @apply bg-white rounded-xl2 shadow-card border border-cream-200/70 transition-shadow duration-300;
   }
   .section {
     @apply mx-auto max-w-7xl px-5 sm:px-8;
@@ -42,6 +54,20 @@ h1, h2, h3, h4, .font-display {
   .label {
     @apply block text-sm font-semibold text-charcoal-700 mb-1.5;
   }
+  .pill-tag {
+    @apply inline-flex items-center rounded-full text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 shadow-sm;
+  }
+  .eyebrow {
+    @apply inline-flex items-center gap-1.5 text-burgundy-600 font-bold tracking-[0.16em] text-xs uppercase before:content-[''] before:h-1.5 before:w-1.5 before:rounded-full before:bg-amber-400;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Skeleton shimmer */
@@ -50,7 +76,7 @@ h1, h2, h3, h4, .font-display {
   100% { background-position: 400px 0; }
 }
 .skeleton {
-  background: linear-gradient(90deg, #f0e8de 25%, #f8f2ea 37%, #f0e8de 63%);
+  background: linear-gradient(90deg, #f2e5d3 25%, #faf0e2 37%, #f2e5d3 63%);
   background-size: 800px 100%;
   animation: shimmer 1.4s ease infinite;
 }

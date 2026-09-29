@@ -322,10 +322,15 @@ async function main() {
     });
   }
 
-  // ── Ticket number sequence ───────────────────────────────────────────
-  await prisma.$executeRawUnsafe(
-    `CREATE SEQUENCE IF NOT EXISTS ticket_number_seq START WITH 10001 INCREMENT BY 1;`
-  );
+  // ── Ticket number counter ────────────────────────────────────────────
+  // Incremented (not read) on first use, so this seeds the value one below
+  // the first real ticket number (10001), matching the old Postgres
+  // sequence's `START WITH 10001`.
+  await prisma.ticketCounter.upsert({
+    where: { id: 1 },
+    update: {},
+    create: { id: 1, value: 10000 },
+  });
 
   // ── Admin user ────────────────────────────────────────────────────────
   const adminEmail = process.env.ADMIN_EMAIL || "admin@brunopizza.com";

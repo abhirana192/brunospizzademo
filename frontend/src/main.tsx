@@ -9,6 +9,8 @@ import { OrderTypeProvider } from "./context/OrderTypeContext";
 import { ToastProvider } from "./context/ToastContext";
 import { MenuDataProvider } from "./context/MenuDataContext";
 import { AuthProvider } from "./context/AuthContext";
+import { CustomerAuthProvider } from "./context/CustomerAuthContext";
+import { SmoothScrollProvider } from "./components/SmoothScrollProvider";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -16,13 +18,17 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <ToastProvider>
           <AuthProvider>
-            <MenuDataProvider>
-              <OrderTypeProvider>
-                <CartProvider>
-                  <App />
-                </CartProvider>
-              </OrderTypeProvider>
-            </MenuDataProvider>
+            <CustomerAuthProvider>
+              <MenuDataProvider>
+                <OrderTypeProvider>
+                  <CartProvider>
+                    <SmoothScrollProvider>
+                      <App />
+                    </SmoothScrollProvider>
+                  </CartProvider>
+                </OrderTypeProvider>
+              </MenuDataProvider>
+            </CustomerAuthProvider>
           </AuthProvider>
         </ToastProvider>
       </BrowserRouter>

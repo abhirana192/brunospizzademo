@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { addressSchema } from "../address/address.schema";
 
 const cartItemSchema = z.object({
   menuItemId: z.string().min(1),
@@ -20,10 +21,8 @@ export const createOrderSchema = z
       .max(20)
       .regex(/^[0-9()+\-.\s]+$/, "Please enter a valid phone number."),
     email: z.string().trim().email("Please enter a valid email address.").optional().or(z.literal("")),
-    address: z.string().trim().max(200).optional(),
-    apartment: z.string().trim().max(50).optional(),
-    city: z.string().trim().max(80).optional(),
-    postalCode: z.string().trim().max(20).optional(),
+    addressId: z.string().min(1).optional(),
+    newAddress: addressSchema.optional(),
     deliveryNotes: z.string().trim().max(300).optional(),
     isAsap: z.boolean(),
     requestedTime: z.string().datetime().optional(),
@@ -32,9 +31,11 @@ export const createOrderSchema = z
   })
   .superRefine((data, ctx) => {
     if (data.orderType === "DELIVERY") {
-      if (!data.address) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Address is required for delivery.", path: ["address"] });
-      if (!data.city) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "City is required for delivery.", path: ["city"] });
-      if (!data.postalCode) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Postal code is required for delivery.", path: ["postalCode"] });
+      if (!data.addressId && !data.newAddress) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please select or add a delivery address.", path: ["addressId"] });
+      } else if (data.addressId && data.newAddress) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Choose either a saved address or a new one, not both.", path: ["addressId"] });
+      }
     }
     if (!data.isAsap && !data.requestedTime) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Please choose a time for your scheduled order.", path: ["requestedTime"] });

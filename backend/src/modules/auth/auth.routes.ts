@@ -25,7 +25,7 @@ authRouter.post(
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new ApiError(401, "Invalid email or password.");
 
-    issueAdminCookie(res, { sub: user.id, email: user.email, name: user.name, role: user.role });
+    issueAdminCookie(res, { sub: user.id, email: user.email, name: user.name, role: user.role as "ADMIN" | "STAFF" });
     res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
   })
 );

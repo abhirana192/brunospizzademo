@@ -20,7 +20,6 @@ export const RESTAURANT = {
 export const NAV_LINKS = [
   { label: "Home", to: "/" },
   { label: "Menu", to: "/menu" },
-  { label: "Deals", to: "/deals" },
   { label: "About Us", to: "/about" },
   { label: "Contact", to: "/contact" },
 ];

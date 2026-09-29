@@ -6,10 +6,14 @@ export interface CreateOrderPayload {
   customerName: string;
   phone: string;
   email?: string;
-  address?: string;
-  apartment?: string;
-  city?: string;
-  postalCode?: string;
+  addressId?: string;
+  newAddress?: {
+    label: string;
+    address: string;
+    apartment?: string;
+    city: string;
+    postalCode: string;
+  };
   deliveryNotes?: string;
   isAsap: boolean;
   requestedTime?: string;
@@ -27,4 +31,5 @@ export interface CreateOrderPayload {
 export const ordersApi = {
   create: (payload: CreateOrderPayload) => api.post<{ ticketNumber: string; order: OrderDTO }>("/orders", payload),
   getByTicket: (ticketNumber: string) => api.get<{ order: OrderDTO }>(`/orders/${encodeURIComponent(ticketNumber)}`),
+  listMine: () => api.get<{ orders: OrderDTO[] }>("/customer/orders"),
 };
